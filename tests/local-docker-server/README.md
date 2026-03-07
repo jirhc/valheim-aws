@@ -1,19 +1,25 @@
 # Valheim Dedicated Server (Docker)
 
-A self-contained Valheim dedicated server with **BepInEx** mod manager support, running in Docker on Ubuntu 22.04 — the same base image used by AWS EC2 instances.
+A self-contained Valheim dedicated server with **BepInEx** mod manager support, running in Docker on Ubuntu 24.04 — the same base image used by AWS EC2 instances.
 
 ## Project structure
 
 ```
-.
+tests/local-docker-server/
 ├── docker-compose.yml          # Container orchestration
-├── Dockerfile                  # Ubuntu 22.04 image build
+├── Dockerfile                  # Ubuntu 24.04 image build
 ├── .env.example                # Configuration template
 └── scripts/
-    ├── entrypoint.sh           # Docker entrypoint (install → start)
-    ├── install_valheim.sh      # SteamCMD + Valheim + BepInEx installer
-    └── start_valheim.sh        # Server launcher with BepInEx support
+    └── entrypoint.sh           # Docker entrypoint (install → start)
+
+infra/modules/vhserver/local/   # Shared scripts (single source of truth)
+├── install_valheim.sh          # SteamCMD + Valheim + BepInEx installer
+└── start_valheim.sh            # Server launcher with BepInEx support
 ```
+
+> **Note:** `install_valheim.sh` and `start_valheim.sh` live in the main infrastructure
+> module and are shared between Docker and AWS EC2 deployments. Only the
+> Docker-specific `entrypoint.sh` lives under `tests/`.
 
 ## Quick start
 
@@ -42,7 +48,8 @@ All settings live in the `.env` file. See [.env.example](.env.example) for the f
 | `SERVER_PASSWORD` | `changeme` | Password (≥ 5 chars, must not contain server name) |
 | `SERVER_PUBLIC` | `1` | `1` = listed in server browser, `0` = private |
 | `BEPINEX_ENABLED` | `true` | Install and enable BepInEx mod loader |
-| `BEPINEX_VERSION` | `5.4.2202` | BepInEx release version |
+| `BEPINEX_VERSION` | `5.4.23.2` | BepInEx release version |
+| `ENABLE_CROSSPLAY` | `false` | Enable crossplay (Steam + Xbox Game Pass) |
 | `SERVER_PORT` | `2456` | Base UDP port (uses PORT, PORT+1, PORT+2) |
 
 ## Included mods

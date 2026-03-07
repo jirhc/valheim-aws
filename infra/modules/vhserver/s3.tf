@@ -65,19 +65,13 @@ resource "aws_s3_bucket_public_access_block" "valheim" {
 }
 
 ###########################################################
-## install_valheim
-
-locals {
-  install_valheim = templatefile("${path.module}/local/install_valheim.sh", { 
-    username = local.username 
-  })
-}
+## install_valheim  (plain script — no Terraform template vars)
 
 resource "aws_s3_object" "install_valheim" {
-  bucket         = aws_s3_bucket.valheim.id
-  key            = "/install_valheim.sh"
-  content = local.install_valheim
-  source_hash = base64sha256(local.install_valheim)
+  bucket      = aws_s3_bucket.valheim.id
+  key         = "/install_valheim.sh"
+  source      = "${path.module}/local/install_valheim.sh"
+  source_hash = filebase64sha256("${path.module}/local/install_valheim.sh")
 }
 
 ###########################################################
@@ -85,40 +79,34 @@ resource "aws_s3_object" "install_valheim" {
 
 locals {
   bootstrap_valheim = templatefile("${path.module}/local/bootstrap_valheim.sh", {
-    username       = local.username
-    bucket         = aws_s3_bucket.valheim.id
-    enable_bepinex = var.enable_bepinex
-  })
-}
-
-resource "aws_s3_object" "bootstrap_valheim" {
-  bucket = aws_s3_bucket.valheim.id
-  key    = "/bootstrap_valheim.sh"
-  content = local.bootstrap_valheim
-  source_hash = base64sha256(local.bootstrap_valheim)
-}
-
-###########################################################
-## start_valheim
-
-locals {
-  start_valheim = templatefile("${path.module}/local/start_valheim.sh", {
     username         = local.username
     bucket           = aws_s3_bucket.valheim.id
     use_domain       = var.domain != "" ? true : false
     world_name       = var.world_name
     server_name      = var.server_name
     server_password  = var.server_password
+    server_port      = "2456"
     enable_bepinex   = var.enable_bepinex
+    bepinex_version  = "5.4.23.2"
     enable_crossplay = var.enable_crossplay
   })
 }
 
+resource "aws_s3_object" "bootstrap_valheim" {
+  bucket      = aws_s3_bucket.valheim.id
+  key         = "/bootstrap_valheim.sh"
+  content     = local.bootstrap_valheim
+  source_hash = base64sha256(local.bootstrap_valheim)
+}
+
+###########################################################
+## start_valheim  (plain script — no Terraform template vars)
+
 resource "aws_s3_object" "start_valheim" {
-  bucket = aws_s3_bucket.valheim.id
-  key    = "/start_valheim.sh"
-  content = local.start_valheim
-  source_hash = base64sha256(local.start_valheim)
+  bucket      = aws_s3_bucket.valheim.id
+  key         = "/start_valheim.sh"
+  source      = "${path.module}/local/start_valheim.sh"
+  source_hash = filebase64sha256("${path.module}/local/start_valheim.sh")
 }
 
 ###########################################################
@@ -179,25 +167,6 @@ resource "aws_s3_object" "admin_list" {
   key            = "/adminlist.txt"
   content = local.admin_list
   source_hash = base64sha256(local.admin_list)
-}
-
-###########################################################
-## install_bepinex
-
-locals {
-  install_bepinex = templatefile("${path.module}/local/install_bepinex.sh", {
-    username = local.username
-    bucket   = aws_s3_bucket.valheim.id
-  })
-}
-
-resource "aws_s3_object" "install_bepinex" {
-  count = var.enable_bepinex ? 1 : 0
-
-  bucket      = aws_s3_bucket.valheim.id
-  key         = "/install_bepinex.sh"
-  content     = local.install_bepinex
-  source_hash = base64sha256(local.install_bepinex)
 }
 
 ###########################################################

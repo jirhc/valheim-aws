@@ -1,4 +1,9 @@
 #!/bin/bash
+# ─────────────────────────────────────────────────────────────────────────────
+# userdata.sh  (EC2 instance initialization — Terraform template)
+# Installs OS dependencies, downloads scripts from S3, and bootstraps the
+# Valheim server via systemd.
+# ─────────────────────────────────────────────────────────────────────────────
 set -e
 
 dpkg --add-architecture i386
@@ -28,25 +33,25 @@ bash kickstart.sh --dont-wait --no-updates
 useradd -m ${username}
 su - ${username} -c "mkdir -p /home/${username}/valheim"
 
+# Download scripts from S3
 aws s3 cp s3://${bucket}/install_valheim.sh /home/${username}/valheim/install_valheim.sh
 aws s3 cp s3://${bucket}/bootstrap_valheim.sh /home/${username}/valheim/bootstrap_valheim.sh
+aws s3 cp s3://${bucket}/start_valheim.sh /home/${username}/valheim/start_valheim.sh
 aws s3 cp s3://${bucket}/valheim.service /home/${username}/valheim/valheim.service
-%{ if enable_bepinex ~}
-aws s3 cp s3://${bucket}/install_bepinex.sh /home/${username}/valheim/install_bepinex.sh
-chmod +x /home/${username}/valheim/install_bepinex.sh
-chown ${username}:${username} /home/${username}/valheim/install_bepinex.sh
-%{ endif ~}
 
 chmod +x /home/${username}/valheim/install_valheim.sh
 chmod +x /home/${username}/valheim/bootstrap_valheim.sh
+chmod +x /home/${username}/valheim/start_valheim.sh
 
 chown ${username}:${username} /home/${username}/valheim/install_valheim.sh
 chown ${username}:${username} /home/${username}/valheim/bootstrap_valheim.sh
+chown ${username}:${username} /home/${username}/valheim/start_valheim.sh
 chown ${username}:${username} /home/${username}/valheim/valheim.service
 
 cp /home/${username}/valheim/valheim.service /etc/systemd/system
 
-su - ${username} -c "bash /home/${username}/valheim/install_valheim.sh"
+# Run install as the server user with BepInEx env vars
+su - ${username} -c "BEPINEX_ENABLED=${enable_bepinex} BEPINEX_VERSION=${bepinex_version} bash /home/${username}/valheim/install_valheim.sh"
 
 systemctl daemon-reload
 systemctl enable valheim.service

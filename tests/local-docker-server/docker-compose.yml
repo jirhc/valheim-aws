@@ -12,8 +12,8 @@
 services:
   valheim:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: tests/local-docker-server/Dockerfile
       args:
         STEAM_USER: ${STEAM_USER:-steam}
     container_name: valheim-server
@@ -27,7 +27,8 @@ services:
       - SERVER_PORT=${SERVER_PORT:-2456}
       - SERVER_PUBLIC=${SERVER_PUBLIC:-1}
       - BEPINEX_ENABLED=${BEPINEX_ENABLED:-true}
-      - BEPINEX_VERSION=${BEPINEX_VERSION:-5.4.2202}
+      - BEPINEX_VERSION=${BEPINEX_VERSION:-5.4.23.2}
+      - ENABLE_CROSSPLAY=${ENABLE_CROSSPLAY:-false}
 
     # ── Network ─────────────────────────────────────────────────────────────
     ports:

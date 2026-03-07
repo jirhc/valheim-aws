@@ -60,9 +60,10 @@ resource "aws_instance" "valheim" {
   instance_type = var.instance_type
   ebs_optimized = true
   user_data = templatefile("${path.module}/local/userdata.sh", {
-    username       = local.username
-    bucket         = aws_s3_bucket.valheim.id
-    enable_bepinex = var.enable_bepinex
+    username        = local.username
+    bucket          = aws_s3_bucket.valheim.id
+    enable_bepinex  = var.enable_bepinex
+    bepinex_version = "5.4.23.2"
   })
   iam_instance_profile   = aws_iam_instance_profile.valheim.name
   vpc_security_group_ids = [aws_security_group.ingress.id]
@@ -89,6 +90,7 @@ resource "aws_instance" "valheim" {
   depends_on = [
     aws_s3_object.install_valheim,
     aws_s3_object.start_valheim,
+    aws_s3_object.bootstrap_valheim,
     aws_s3_object.backup_valheim,
     aws_s3_object.crontab,
     aws_s3_object.valheim_service,
