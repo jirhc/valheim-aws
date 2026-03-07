@@ -25,7 +25,6 @@ data "aws_iam_policy_document" "lambda_ec2_control" {
     actions   = [
       "ec2:DescribeInstances", 
       "ec2:DescribeInstanceStatus", 
-      "ec2:DescribeSpotInstanceRequests",
       "ec2:StartInstances",
       "ec2:StopInstances"
     ]
@@ -53,13 +52,13 @@ locals {
 }
 
 module "lambda_vhserver" {
-  source = "terraform-aws-modules/lambda/aws"
-  version = "4.7.1"
+  source  = "terraform-aws-modules/lambda/aws"
+  version = "~> 7.0"
 
   function_name = local.lambda_vhserver_name_stage
   description   = "lambda-vhserver"
   handler       = "${var.lambda_vhserver_name}.lambda_handler"
-  runtime       = "python3.9"
+  runtime       = "python3.12"
   publish       = true
 
   attach_policies = true
@@ -68,7 +67,7 @@ module "lambda_vhserver" {
     aws_iam_policy.lambda_ec2_control.arn,
     "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
   ]
-  number_of_policies = 2
+  number_of_policies = 3
 
   source_path = "${path.module}/${var.lambda_vhserver_name}"
 
@@ -80,12 +79,12 @@ module "lambda_vhserver" {
   ]
 
   environment_variables = {
-    DISCORD_PUBLIC_KEY = var.discord_public_key
-    DISCORD_AUTH_TOKEN = var.discord_auth_token
-    DISCORD_APP_ID = var.discord_application_id
-    # SERVER_INSTANCE_ID = aws_spot_instance_request.ec2test.spot_instance_id
-    SERVER_INSTANCE_ID = var.vhserver_instance_id
-    LOG_LEVEL = "INFO"
+    DISCORD_PUBLIC_KEY      = var.discord_public_key
+    DISCORD_AUTH_TOKEN      = var.discord_auth_token
+    DISCORD_APP_ID          = var.discord_application_id
+    SERVER_INSTANCE_ID      = var.vhserver_instance_id
+    POWERTOOLS_SERVICE_NAME = "discord-vhserver"
+    POWERTOOLS_LOG_LEVEL    = "INFO"
   }
 
   allowed_triggers = {

@@ -1,6 +1,6 @@
 # valheim-aws
 
-This project allows the configuration of an AWS infrastructure to support a Valheim dedidacted server controlled by a Discord bot.
+This project allows the configuration of an AWS infrastructure to support a Valheim dedicated server controlled by a Discord bot.
 
 **Features:**
 
@@ -9,13 +9,16 @@ This project allows the configuration of an AWS infrastructure to support a Valh
 - Automatically stop the server if nobody is connected after ~15 minutes (can save loads of money).
 - Send a notification by mail when the server goes down.
 - Discord bot `/vh` to control the Valheim server (`status`, `start`, `stop`).
-- The Discord bot tells the IP/url to which the user must connect.
+- Elastic IP gives the server a **static address** that never changes — the Discord bot always shows the same IP.
+- Optional **crossplay** support (Steam + Xbox Game Pass).
+- Optional **BepInEx** mod loader with S3-based mod management.
+- Optional **DynamoDB state locking** for safe team/CI usage ([details](doc/state-locking.md)).
 
 ## Requirements
 
 - AWS account including CLI configured on the machine environment.
-- Terraform v1.3.6+
-- Python 3.9+ (**only version 3.9+ is supported due to AWS Lambda function limitation**)
+- Terraform v1.6.0+
+- Python 3.12+ (**only version 3.12+ is supported due to AWS Lambda function limitation**)
 
 > **_Note:_** The project comes with a pre-configured vscode dev container including all the needed dependencies.
 
@@ -34,38 +37,44 @@ valheim-aws               // (base project)
 
 Define the backend settings in `backend.tf` like the following example:
 
-```yaml
+```hcl
 # bucket to store the server data
 bucket = "<your bucket name (see usage 1)>"
 # store the terraform state in S3
 key    = "valheim-server/prod/terraform.tfstate"
 # define a region to store the infrastructure (the closest to the players the better)
 region = "eu-west-3"
+# enable state locking (optional but recommended) — see doc/state-locking.md
+# dynamodb_table = "terraform-state-lock"
 ```
 
 Define the infrastructure settings in `variables.tfvars` like the following example:
 
-```yaml
+```hcl
 # Deployment
 stage = "dev"
 
 # AWS settings
 account_id       = "<AWS account id>"
-aws_region       = "eu-west-3"         // Choose a region closest to your physical location
-sns_email        = "your_mail@mail.com" // Alert go here e.g. server started, server stopped
+aws_region       = "eu-west-3"          # Choose a region closest to your physical location
+sns_email        = "your_mail@mail.com" # Alerts go here e.g. server started, server stopped
 
 # Valheim server
 world_name          = "<name of your Valheim world>"
 server_name         = "<name of your Valheim server>"
 server_password     = "password"
-ec2_keypair_name    = "<EC2 keypair name>"  // for debug purpose
-initial_world_name  = "<name of your Valheim world to use as startup>"                // Optional, if set must be equal to 'world_name'
+ec2_keypair_name    = "<EC2 keypair name>"  # For debug purpose
+initial_world_name  = "<name of your Valheim world to use as startup>"  # Optional, if set must be equal to 'world_name'
 admins = {
-  "bob"   = 76561197993928955 // Create an AWS user for remote management and make Valheim admin using SteamID
+  "bob"   = 76561197993928955 # Create an AWS user for remote management and make Valheim admin using SteamID
   "jane"  = 76561197994340319
-  "sally" = ""                // Create an AWS user for remote management but don't make Valheim admin
+  "sally" = ""                # Create an AWS user for remote management but don't make Valheim admin
 }
-instance_type       = "t3a.medium"   // "t3a.medium" seems to be the minimum config
+instance_type       = "t3a.medium"   # "t3a.medium" seems to be the minimum config
+
+# Optional features
+enable_bepinex   = false  # Set to true to install BepInEx mod loader
+enable_crossplay = false  # Set to true for Steam + Xbox crossplay
 
 # Discord secrets
 discord_public_key     = "<Discord public key of the bot>"
@@ -95,14 +104,57 @@ valheim-aws                 // (base project)
 
 2. In the `.tfvars` file, assign the world name to the var `initial_world_name`.
 
-> **_WARNING:_** Due to the world beeing modified while playing the game, the configuration becomes non-idempotent. That means that each you re-apply the terraform configuration, the Valheim world will be overwritten with the one in the `world` folder. **Thus, it is highly recommanded to remove the `initial_world_name` variable definition from the `variables.tfvars` file after having successfully applied the configuration for the first time.**
+> **_WARNING:_** Due to the world being modified while playing the game, the configuration becomes non-idempotent. That means that each time you re-apply the terraform configuration, the Valheim world will be overwritten with the one in the `world` folder. **Thus, it is highly recommended to remove the `initial_world_name` variable definition from the `variables.tfvars` file after having successfully applied the configuration for the first time.**
+
+### How to enable crossplay
+
+To allow players on Xbox Game Pass / Microsoft Store to join alongside Steam players, set the following in your `variables.tfvars`:
+
+```hcl
+enable_crossplay = true
+```
+
+When crossplay is enabled the server starts with the `-crossplay` flag and removes the `-public 1` option. Steam-only server listing is disabled in crossplay mode; players connect by IP instead.
+
+> **_WARNING:_** The **ServerSideMap** mod is incompatible with crossplay/PlayFab. Do not enable both `enable_crossplay` and `enable_bepinex` if you rely on ServerSideMap.
+
+### How to enable BepInEx (mod support)
+
+To install the [BepInEx](https://github.com/BepInEx/BepInEx) mod loader on the dedicated server, set the following variable in your `variables.tfvars`:
+
+```hcl
+enable_bepinex = true
+```
+
+This will automatically download and configure BepInEx 5.4.x on the server at startup. BepInEx is reinstalled on every server restart to survive Valheim updates.
+
+#### Included mods
+
+The following mods are downloaded automatically from [Thunderstore](https://thunderstore.io/c/valheim/) when BepInEx is enabled:
+
+| Mod | Version | Description |
+|---|---|---|
+| [FuelEternal](https://thunderstore.io/c/valheim/p/Marf/FuelEternal/) | 1.2.1 | Sets fuel sources to their maximum automatically (torches, campfires, ovens, etc.) |
+| [ServerSideMap](https://thunderstore.io/c/valheim/p/Mydayyy/ServerSideMap/) | 1.3.13 | Shares explored map and markers between all players on the server |
+
+ServerSideMap is pre-configured with both **map sharing** and **marker sharing** enabled. The config file is created at `BepInEx/config/eu.mydayyy.plugins.serversidemap.cfg` on first install and can be customised via S3 (see below).
+
+> **_Note:_** ServerSideMap requires the mod on **both server and client**. Players must install it locally as well.
+
+#### Managing mods via S3
+
+Mods are synced from S3 during each server boot. Upload your mods to these prefixes in the Valheim S3 bucket:
+
+```text
+s3://<your-bucket>/bepinex/plugins/   ← plugin DLLs
+s3://<your-bucket>/bepinex/config/    ← config files
+```
+
+The sync is additive — existing files on the server are preserved unless overwritten by a newer S3 version.
 
 ### Monitoring
 
-To view server monitoring metrics visit the `monitoring_url` output from
-Terraform after deploying. Note that this URL will change every time the server
-starts unless you're using your own domain in AWS. In this case I find it's
-easier to just take note of the public IP address when you turn the server on.
+To view server monitoring metrics visit the `monitoring_url` output from Terraform after deploying. Because the server uses an Elastic IP, this URL stays the same across restarts.
 
 ### Timings
 
@@ -120,45 +172,46 @@ The server logic around backups is as follows:
 4. Five minutes after the server has started perform a backup.
 5. Perform backups every hour after boot.
 
-### Restores
-
-todo
-
 ## How it works
 
 The AWS architecture and the terraform modules:
 
 ![AWS Architecture](./doc/architecture.png "AWS Architecture")
 
-Note that there are two Lambda functions in interface with Discord:
+### Networking
 
-- `interaction` is used to provide the ACK through the API Gateway in less than 3 seconds as requested by the Discord specification. It then forwards the initial Discord request to the second Lambda (`vhserver`) through an SNS topic for asynchronous execution.
-- `vhserver` is called by SNS and processes the initial request received from the related topic. The Lambda then answers directly to the Discord client refering to the initial command token.
+The server runs on an EC2 instance with **spot pricing** (via `instance_market_options`) to keep costs low. An **Elastic IP** is attached so the address stays constant across stop/start cycles — no need for players to look up a new IP each time.
+
+If a custom `domain` is provided, Terraform creates a Route 53 **A record** pointing to the Elastic IP.
+
+### Discord bot
+
+An **HTTP API Gateway** (v2) receives Discord interaction webhooks and forwards them to two Lambda functions:
+
+- **interaction** provides the ACK through the API Gateway in less than 3 seconds as requested by the Discord specification. It then forwards the initial Discord request to the second Lambda (`vhserver`) through an SNS topic for asynchronous execution.
+- **vhserver** is called by SNS and processes the initial request received from the related topic. The Lambda then answers directly to the Discord client referring to the initial command token.
+
+Both Lambdas use [AWS Lambda Powertools](https://docs.powertools.aws.dev/lambda/python/latest/) for structured JSON logging.
 
 This architecture follows the good practice of decoupling the 2 Lambdas to limit their dependency, and so their respective execution time (cost optimization). This is possible since we do not need synchronous execution between the two.
 
 ## Infrastructure cost
 
-The server is hosted in an EC2 spot instance. While the main advantage of this choice is obviously the cost saving, some drawback should be considered:
+The server is hosted on an EC2 spot instance. The main advantage is the significant cost saving (typically 60-70% compared to on-demand).
 
-- A lack of availability can prevent the EC2 instance from being created.
-- A new EC2 isntance is created each time the server is started. That involves a new public IP and DNS address each time. The workaround is that the updated address is provided to the users by the Discord bot. Another solution could be to register each time the instance to a custom domain. This last solution is not considered yet as it would make the infrastructure more expansive.
+Key cost components:
 
-**TODO**: use Source: Infracost v0.8.5 `infracost breakdown --path . --show-skipped
---no-color`
+| Resource | Cost |
+|---|---|
+| EC2 spot (t3a.medium, running) | ~$0.012/hr (~$8.50/month if 24/7) |
+| Elastic IP (while instance is running) | Free |
+| Elastic IP (while instance is stopped) | ~$0.005/hr (~$3.65/month) |
+| HTTP API Gateway | $1.00 per million requests |
+| Lambda | Included in free tier for typical usage |
+| S3 | < $1/month for world files |
+| SNS | Free tier |
 
---------------------------
-
-## todo
-
-- Add docs on performing restores
-- Don't include empty keys in admin list
-- Fix shellcheck and terraform docs pre commit
-- Add tests e.g. cron, scripts exist, ports open, s3 access, etc
-- Add support for spot instances
-- Add Infracost v0.8.5 `infracost breakdown --path . --show-skipped
---no-color`
-- Create a docker image to manage the full solution (dependencies, automate the full installation process).
+> **_Tip:_** The auto-stop feature (stops the server after ~15 min of inactivity) keeps the running costs very low. The Elastic IP idle cost is the main charge when the server is off.
 
 ## Credits
 

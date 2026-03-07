@@ -2,7 +2,7 @@
 
 ## Image construction
 
-Image dependancies:
+Image dependencies:
 
 - go
 - terraform
@@ -10,7 +10,6 @@ Image dependancies:
 - shellcheck
 - tfsec
 - terraform-docs
-- pre-commit
 - checkov
 
 ## Volumes

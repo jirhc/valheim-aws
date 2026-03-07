@@ -90,6 +90,18 @@ variable "initial_world_path" {
   description = "The path to the initial world to be used by the server"
 }
 
+variable "enable_bepinex" {
+  type        = bool
+  default     = false
+  description = "Enable BepInEx mod loader for the Valheim server"
+}
+
+variable "enable_crossplay" {
+  type        = bool
+  default     = false
+  description = "Enable crossplay support (Steam + Xbox Game Pass)"
+}
+
 # discord bot variables -------------------------------------------------------
 
 variable "discord_public_key" { 

@@ -20,6 +20,10 @@ module "service" {
   initial_world_path      = "${path.root}/config/world"
   admins                  = var.admins
 
+  # mods
+  enable_bepinex          = var.enable_bepinex
+  enable_crossplay        = var.enable_crossplay
+
   # discord bot
   discord_public_key      = var.discord_public_key
   discord_auth_token      = var.discord_auth_token

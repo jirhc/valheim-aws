@@ -42,8 +42,21 @@ echo "Syncing admin list"
 
 aws s3 cp s3://${bucket}/adminlist.txt /home/${username}/.config/unity3d/IronGate/Valheim/adminlist.txt
 
+%{ if enable_bepinex ~}
+echo "Configuring BepInEx mod loader"
+export DOORSTOP_ENABLE=TRUE
+export DOORSTOP_INVOKE_DLL_PATH="./BepInEx/core/BepInEx.Preloader.dll"
+export DOORSTOP_CORLIB_OVERRIDE_PATH=""
+export LD_LIBRARY_PATH="./doorstop_libs:$LD_LIBRARY_PATH"
+export LD_PRELOAD="libdoorstop_x64.so"
+%{ endif ~}
+
 echo "Starting server PRESS CTRL-C to exit"
 
-./valheim_server.x86_64 -name "${server_name}" -port 2456 -world "${world_name}" -password ${server_password} -batchmode -nographics -public 1
+%{ if enable_crossplay ~}
+./valheim_server.x86_64 -name "${server_name}" -port 2456 -world "${world_name}" -password "${server_password}" -batchmode -nographics -crossplay
+%{ else ~}
+./valheim_server.x86_64 -name "${server_name}" -port 2456 -world "${world_name}" -password "${server_password}" -batchmode -nographics -public 1
+%{ endif ~}
 
 export LD_LIBRARY_PATH=$templdpath

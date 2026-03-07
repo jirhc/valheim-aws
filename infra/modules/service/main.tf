@@ -14,6 +14,8 @@ module "vhserver" {
   initial_world_name = var.initial_world_name
   initial_world_path = var.initial_world_path
   admins             = var.admins
+  enable_bepinex     = var.enable_bepinex
+  enable_crossplay   = var.enable_crossplay
   tags               = local.tags
   ec2_tags           = local.ec2_tags
 }

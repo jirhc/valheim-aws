@@ -8,7 +8,7 @@ variable "vhserver_instance_id" { type = string }
 
 variable "tags" {
   description = "A map of tags to apply to contained resources."
-  type        = map
+  type        = map(string)
   default     = {}
 }
 

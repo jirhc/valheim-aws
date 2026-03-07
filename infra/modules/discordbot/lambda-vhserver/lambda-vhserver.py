@@ -3,22 +3,15 @@ import json
 from typing import Optional
 import requests
 import os
-import logging
 import boto3
+from aws_lambda_powertools import Logger
 
-# log level shall be one of the following:
-# 'CRITICAL', 'FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO': INFO, 'DEBUG': DEBUG, 'NOTSET': NOTSET,
-LOG_LEVEL = os.getenv('LOG_LEVEL', 'ERROR')
-
-# DISCORD_PUBLIC_KEY = os.getenv('DISCORD_PUBLIC_KEY')
 DISCORD_AUTH_TOKEN = os.getenv('DISCORD_AUTH_TOKEN')
 DISCORD_APP_ID = os.getenv('DISCORD_APP_ID')
 
 CURRENT_API_VERSION = "10"
 
-
-logging.basicConfig(level=LOG_LEVEL)
-logger = logging.getLogger()
+logger = Logger()
 
 RESPONSE_TYPES = {
     "PONG": 1,
@@ -98,7 +91,7 @@ class IDiscordResponseData:
     """The actual response data that will be used in the resulting Discord message."""
     tts: bool
     content: str
-    embeds: list[any]
+    embeds: list
     allowedMentions: list[str]
 
 def sendFollowupMessage(endpointInfo: IDiscordEndpointInfo,
@@ -111,7 +104,7 @@ def sendFollowupMessage(endpointInfo: IDiscordEndpointInfo,
     @returns Returns true if the response was succesfully sent, false otherwise.
     """
     headers = {
-        'Authorization': f"Bot ${endpointInfo.authToken}",
+        'Authorization': f"Bot {endpointInfo.authToken}",
     }
     data = {
         "allowedMentions": responseData.allowedMentions,
@@ -206,7 +199,7 @@ def vh_stop(endpointInfo, token):
 def lambda_handler(event, context):
     """lambda_handler(event, context)
     """
-    logger.debug(f"Received event: ${json.dumps(event, indent=2)}")
+    logger.debug(f"Received event: {json.dumps(event, indent=2)}")
 
     endpointInfo = IDiscordEndpointInfo (
         authToken = DISCORD_AUTH_TOKEN,

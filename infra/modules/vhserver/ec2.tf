@@ -48,27 +48,41 @@ data "aws_ami" "ubuntu" {
   owners      = ["099720109477"]
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.*-amd64-server-*"]
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]
   }
 }
 
-resource "aws_spot_instance_request" "valheim" {
+###############################################################################
+# EC2 instance with spot pricing via instance_market_options
+
+resource "aws_instance" "valheim" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
   ebs_optimized = true
   user_data = templatefile("${path.module}/local/userdata.sh", {
-    username = local.username
-    bucket   = aws_s3_bucket.valheim.id
+    username       = local.username
+    bucket         = aws_s3_bucket.valheim.id
+    enable_bepinex = var.enable_bepinex
   })
-  iam_instance_profile           = aws_iam_instance_profile.valheim.name
-  vpc_security_group_ids         = [aws_security_group.ingress.id]
-  wait_for_fulfillment           = true
-  instance_interruption_behavior = "stop"
+  iam_instance_profile   = aws_iam_instance_profile.valheim.name
+  vpc_security_group_ids = [aws_security_group.ingress.id]
+
+  instance_market_options {
+    market_type = "spot"
+    spot_options {
+      instance_interruption_behavior = "stop"
+      spot_instance_type             = "persistent"
+    }
+  }
+
   metadata_options {
     http_endpoint = "enabled"
     http_tokens   = "required"
   }
-  tags = var.ec2_tags
+
+  tags = merge(var.ec2_tags, {
+    "Name" = "${local.name}-server"
+  })
 
   key_name = var.ec2_keypair_name
 
@@ -86,10 +100,18 @@ resource "aws_spot_instance_request" "valheim" {
   ]
 }
 
-resource "aws_ec2_tag" "valheim" {
-  for_each = var.ec2_tags
+###############################################################################
+# Elastic IP — provides a consistent static IP across stop/start cycles
 
-  resource_id = aws_spot_instance_request.valheim.spot_instance_id
-  key         = each.key
-  value       = each.value
+resource "aws_eip" "valheim" {
+  domain = "vpc"
+
+  tags = {
+    "Name" = "${local.name}-eip"
+  }
+}
+
+resource "aws_eip_association" "valheim" {
+  instance_id   = aws_instance.valheim.id
+  allocation_id = aws_eip.valheim.id
 }

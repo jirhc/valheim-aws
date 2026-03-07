@@ -2,9 +2,11 @@ import json
 import boto3
 import os
 from nacl.signing import VerifyKey
+from aws_lambda_powertools import Logger
 
 sns_client = boto3.client('sns')
 
+logger = Logger()
 
 ''' public key found on Discord Application -> General Information page '''
 DISCORD_PUBLIC_KEY = os.getenv('DISCORD_PUBLIC_KEY')
@@ -21,64 +23,60 @@ RESPONSE_TYPES = {
     "MODAL": 9,
 }
 
-def verifyEvent(event) -> bool:
+def verifyEvent(signature: str, timestamp: str, body: str) -> None:
     '''Verifies that an event coming from Discord is legitimate. 
-    @param {any} event The event to verify from Discord.
-    @return {Exception} Raise an Exception if the 
-    verification fails..
+    Raises an Exception if the verification fails.
     '''
-    signature = event['signature']
-    timestamp = event['timestamp']
-    body = event['jsonBody']
-    
-    message = timestamp.encode() + json.dumps(body, separators=(",", ":")).encode()
+    message = timestamp.encode() + body.encode()
     verify_key = VerifyKey(bytes.fromhex(DISCORD_PUBLIC_KEY))
     verify_key.verify(message, bytes.fromhex(signature)) # raises an error if unequal
 
 
 def lambda_handler(event, context):
-    '''Handles incoming events from the Discord bot.
-    @param {IDiscordEventRequest} event The incoming request to handle.
-    @param {Context} _context The context this request was called with.
-    @return Returns a response to send back to Discord (json-typed).
-    '''
-    # print(discordSecrets)
-    # print(f"Received event: {json.dumps(event, indent=4)}")
+    '''Handles incoming events from the Discord bot (HTTP API v2 proxy format).'''
+    logger.debug(f"Received event: {json.dumps(event, indent=4)}")
 
-    # headers = {
-    #     'Content-Type': 'application/json'
-    # }
+    # HTTP API v2 sends headers and raw body differently than REST API
+    headers = event.get('headers', {})
+    raw_body = event.get('body', '{}')
     
-    # headers_full = {
-    #     'Access-Control-Allow-Credentials': "true",
-    #     'Access-Control-Allow-Headers': 'Authorization,Content-Type',
-    #     'Access-Control-Allow-Methods': 'OPTIONS,POST',
-    #     'Content-Type': 'application/json',
-    #     "Vary": 'Origin',
-    # }
+    signature = headers.get('x-signature-ed25519', '')
+    timestamp = headers.get('x-signature-timestamp', '')
 
     # verify the signature
     try:
-        verifyEvent(event)
+        verifyEvent(signature, timestamp, raw_body)
     except Exception as e:
-        raise Exception(f"[UNAUTHORIZED] Invalid request signature: {e}")
+        logger.error(f"Signature verification failed: {e}")
+        return {
+            "statusCode": 401,
+            "body": json.dumps({"error": "invalid request signature"})
+        }
 
-    # extract body from the event
-    body = event['jsonBody']
+    # parse the body
+    body = json.loads(raw_body)
     
     # check if message is a ping
     if body.get("type") == 1:
-        return PING_PONG
+        return {
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps(PING_PONG)
+        }
     
-    # TODO check the other types
+    cmd_name = body.get("data", {}).get("name")
     
-    cmd_name = body.get("data").get("name")
-    # cmd_options = body.get("data").get("options")
+    # Build the internal event payload for the vhserver lambda (via SNS)
+    internal_event = {
+        "timestamp": timestamp,
+        "signature": signature,
+        "jsonBody": body
+    }
     
-    response = sns_client.publish(
+    sns_client.publish(
         TargetArn=os.environ['SNS_PUBLISH_VH_ARN'],
         Message=json.dumps({
-            "default": json.dumps(event)
+            "default": json.dumps(internal_event)
             }),
         MessageStructure='json',
         MessageAttributes= {
@@ -99,7 +97,11 @@ def lambda_handler(event, context):
             "allowed_mentions": []
         }
     }
-    return ret
+    return {
+        "statusCode": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": json.dumps(ret)
+    }
 
 ###############################################################################
 ## TEST

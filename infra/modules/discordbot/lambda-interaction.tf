@@ -32,13 +32,13 @@ locals {
 
 # Define the lambda function
 module "lambda_interaction" {
-  source = "terraform-aws-modules/lambda/aws"
-  version = "4.7.1"
+  source  = "terraform-aws-modules/lambda/aws"
+  version = "~> 7.0"
 
   function_name = local.lambda_interaction_name_stage
   description   = "lambda-bot-interaction"
   handler       = "${var.lambda_interaction_name}.lambda_handler"
-  runtime       = "python3.9"
+  runtime       = "python3.12"
   publish       = true
 
   attach_policies = true
@@ -58,14 +58,16 @@ module "lambda_interaction" {
   ]
 
   environment_variables = {
-    DISCORD_PUBLIC_KEY = var.discord_public_key
-    SNS_PUBLISH_VH_ARN = aws_sns_topic.vhserver.arn
+    DISCORD_PUBLIC_KEY      = var.discord_public_key
+    SNS_PUBLISH_VH_ARN     = aws_sns_topic.vhserver.arn
+    POWERTOOLS_SERVICE_NAME = "discord-interaction"
+    POWERTOOLS_LOG_LEVEL    = "INFO"
   }
 
   allowed_triggers = {
     APIGatewayPost = {
       service    = "apigateway"
-      source_arn = "${aws_api_gateway_deployment.event.execution_arn}*/POST/event"
+      source_arn = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
     },
   }
 

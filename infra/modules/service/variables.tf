@@ -19,6 +19,8 @@ variable "ec2_keypair_name" { type = string }
 variable "initial_world_name" { type = string }
 variable "initial_world_path" { type = string }
 variable "admins" { type = map(any) }
+variable "enable_bepinex" { type = bool }
+variable "enable_crossplay" { type = bool }
 
 # discordbot variables
 

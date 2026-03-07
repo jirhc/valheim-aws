@@ -1,0 +1,54 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Valheim Dedicated Server — Docker Compose
+# ─────────────────────────────────────────────────────────────────────────────
+# Usage:
+#   1. cp .env.example .env        # create your config
+#   2. $EDITOR .env                # tweak server name, password, etc.
+#   3. docker compose up -d        # start the server
+#   4. docker compose logs -f      # watch logs
+#   5. docker compose down          # graceful stop
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  valheim:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        STEAM_USER: ${STEAM_USER:-steam}
+    container_name: valheim-server
+    restart: unless-stopped
+
+    # ── Environment variables forwarded into the container ──────────────────
+    environment:
+      - SERVER_NAME=${SERVER_NAME:-MyValheimServer}
+      - WORLD_NAME=${WORLD_NAME:-MyWorld}
+      - SERVER_PASSWORD=${SERVER_PASSWORD:-changeme}
+      - SERVER_PORT=${SERVER_PORT:-2456}
+      - SERVER_PUBLIC=${SERVER_PUBLIC:-1}
+      - BEPINEX_ENABLED=${BEPINEX_ENABLED:-true}
+      - BEPINEX_VERSION=${BEPINEX_VERSION:-5.4.2202}
+
+    # ── Network ─────────────────────────────────────────────────────────────
+    ports:
+      - "2456:2456/udp"       # game traffic
+      - "2457:2457/udp"       # steam server query
+      - "2458:2458/udp"       # steam master server
+
+    # ── Persistent storage ──────────────────────────────────────────────────
+    volumes:
+      - valheim-server:/home/steam/valheim          # game binaries & mods
+      - valheim-data:/home/steam/.config/unity3d/IronGate/Valheim  # worlds & config
+
+    # ── Resource limits (tune to your instance) ─────────────────────────────
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+    # ── Graceful shutdown ───────────────────────────────────────────────────
+    stop_grace_period: 30s
+
+volumes:
+  valheim-server:
+  valheim-data:

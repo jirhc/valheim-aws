@@ -3,9 +3,11 @@ resource "aws_s3_bucket" "valheim" {
   bucket_prefix = local.name
 }
 
-resource "aws_s3_bucket_acl" "valheim" {
+resource "aws_s3_bucket_ownership_controls" "valheim" {
   bucket = aws_s3_bucket.valheim.id
-  acl    = "private"
+  rule {
+    object_ownership = "BucketOwnerEnforced"
+  }
 }
 
 # WARNING Can cost a lot
@@ -83,8 +85,9 @@ resource "aws_s3_object" "install_valheim" {
 
 locals {
   bootstrap_valheim = templatefile("${path.module}/local/bootstrap_valheim.sh", {
-    username = local.username
-    bucket   = aws_s3_bucket.valheim.id
+    username       = local.username
+    bucket         = aws_s3_bucket.valheim.id
+    enable_bepinex = var.enable_bepinex
   })
 }
 
@@ -100,12 +103,14 @@ resource "aws_s3_object" "bootstrap_valheim" {
 
 locals {
   start_valheim = templatefile("${path.module}/local/start_valheim.sh", {
-    username        = local.username
-    bucket          = aws_s3_bucket.valheim.id
-    use_domain      = var.domain != "" ? true : false
-    world_name      = var.world_name
-    server_name     = var.server_name
-    server_password = var.server_password
+    username         = local.username
+    bucket           = aws_s3_bucket.valheim.id
+    use_domain       = var.domain != "" ? true : false
+    world_name       = var.world_name
+    server_name      = var.server_name
+    server_password  = var.server_password
+    enable_bepinex   = var.enable_bepinex
+    enable_crossplay = var.enable_crossplay
   })
 }
 
@@ -174,6 +179,25 @@ resource "aws_s3_object" "admin_list" {
   key            = "/adminlist.txt"
   content = local.admin_list
   source_hash = base64sha256(local.admin_list)
+}
+
+###########################################################
+## install_bepinex
+
+locals {
+  install_bepinex = templatefile("${path.module}/local/install_bepinex.sh", {
+    username = local.username
+    bucket   = aws_s3_bucket.valheim.id
+  })
+}
+
+resource "aws_s3_object" "install_bepinex" {
+  count = var.enable_bepinex ? 1 : 0
+
+  bucket      = aws_s3_bucket.valheim.id
+  key         = "/install_bepinex.sh"
+  content     = local.install_bepinex
+  source_hash = base64sha256(local.install_bepinex)
 }
 
 ###########################################################

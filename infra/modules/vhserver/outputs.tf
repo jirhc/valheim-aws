@@ -1,5 +1,5 @@
 output "instance_id" {
-  value = aws_spot_instance_request.valheim.spot_instance_id
+  value = aws_instance.valheim.id
 }
 
 output "bucket_id" {

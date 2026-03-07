@@ -27,7 +27,7 @@ resource "aws_cloudwatch_metric_alarm" "valheim_stopped" {
     aws_sns_topic.valheim.arn,
     "arn:aws:swf:${var.aws_region}:${data.aws_caller_identity.current.account_id}:action/actions/AWS_EC2.InstanceId.Stop/1.0",
   ]
-  dimensions = { "InstanceId" = aws_spot_instance_request.valheim.spot_instance_id }
+  dimensions = { "InstanceId" = aws_instance.valheim.id }
 }
 
 resource "aws_cloudwatch_event_rule" "valheim_started" {
@@ -38,7 +38,7 @@ resource "aws_cloudwatch_event_rule" "valheim_started" {
     "detail-type" : ["EC2 Instance State-change Notification"],
     detail : {
       state : ["pending"],
-      "instance-id" : [aws_spot_instance_request.valheim.spot_instance_id]
+      "instance-id" : [aws_instance.valheim.id]
     }
   })
 }
@@ -59,7 +59,7 @@ resource "aws_cloudwatch_event_target" "valheim_started" {
   }
 }
 
-## TODO (check why this CNAME matters...)
+## Route53 CNAME (optional, when domain is set)
 
 data "aws_route53_zone" "selected" {
   count = var.domain != "" ? 1 : 0
@@ -72,11 +72,16 @@ resource "aws_route53_record" "valheim" {
 
   zone_id = data.aws_route53_zone.selected[0].zone_id
   name    = local.name
-  type    = "CNAME"
+  type    = "A"
   ttl     = "300"
-  records = [aws_spot_instance_request.valheim.public_dns]
+  records = [aws_eip.valheim.public_ip]
 }
 
 output "monitoring_url" {
-  value = format("%s%s%s", "http://", var.domain != "" ? aws_route53_record.valheim[0].fqdn : aws_spot_instance_request.valheim.public_dns, ":19999")
+  value = format("http://%s:19999", aws_eip.valheim.public_ip)
+}
+
+output "server_ip" {
+  value       = aws_eip.valheim.public_ip
+  description = "The static Elastic IP of the Valheim server"
 }
