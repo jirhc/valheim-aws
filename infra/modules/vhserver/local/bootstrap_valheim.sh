@@ -15,6 +15,10 @@ echo "════════════════════════�
 echo " Valheim bootstrap (AWS)"
 echo "══════════════════════════════════════════════════════════════"
 
+# ── Sync configuration from S3 ──────────────────────────────────────────────
+echo "Syncing server configuration"
+aws s3 cp "s3://$${BUCKET}/valheim.conf" "$${VALHEIM_DIR}/valheim.conf"
+
 # ── Sync backup script from S3 ──────────────────────────────────────────────
 echo "Syncing backup script"
 aws s3 cp "s3://$${BUCKET}/backup_valheim.sh" "$${VALHEIM_DIR}/backup_valheim.sh"
@@ -61,14 +65,5 @@ aws s3 sync "s3://$${BUCKET}/bepinex/plugins/" "$${VALHEIM_DIR}/BepInEx/plugins/
 aws s3 sync "s3://$${BUCKET}/bepinex/config/"  "$${VALHEIM_DIR}/BepInEx/config/"  2>/dev/null || echo "No config found in S3, skipping."
 %{ endif ~}
 
-# ── Export environment variables for start_valheim.sh ────────────────────────
-export SERVER_NAME="${server_name}"
-export WORLD_NAME="${world_name}"
-export SERVER_PASSWORD="${server_password}"
-export SERVER_PORT="${server_port}"
-export BEPINEX_ENABLED="${enable_bepinex}"
-export BEPINEX_VERSION="${bepinex_version}"
-export ENABLE_CROSSPLAY="${enable_crossplay}"
-
-# ── Launch the server ────────────────────────────────────────────────────────
+# ── Launch the server (config is sourced from valheim.conf) ──────────────────
 exec bash "$${VALHEIM_DIR}/start_valheim.sh"

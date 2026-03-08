@@ -3,13 +3,14 @@
 # install_valheim.sh
 # Installs / updates SteamCMD, Valheim Dedicated Server, and (optionally)
 # the BepInEx mod manager.
-#
-# Environment variables:
-#   HOME              — home directory of the user running the script
-#   BEPINEX_ENABLED   — "true" to install BepInEx (default: "false")
-#   BEPINEX_VERSION   — BepInEx release version (default: "5.4.23.2")
+# Configuration is loaded from valheim.conf (Terraform-managed on EC2,
+# generated from env vars on Docker). Falls back to env var defaults.
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
+
+# ── Source configuration (Terraform-managed on EC2, generated on Docker) ────
+VALHEIM_CONF="${HOME}/valheim/valheim.conf"
+[[ -f "${VALHEIM_CONF}" ]] && source "${VALHEIM_CONF}"
 
 HOME_DIR="$HOME"
 STEAM_DIR="${HOME_DIR}/steam"
@@ -34,6 +35,10 @@ install_steamcmd() {
         curl -sSL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" \
             | tar zxf -
         log "SteamCMD downloaded."
+
+        # First run: let SteamCMD self-update before any app install
+        log "Running SteamCMD first-time update …"
+        "${STEAM_DIR}/steamcmd.sh" +quit || true
     else
         log "SteamCMD already present — skipping download."
     fi
@@ -133,7 +138,7 @@ install_default_mods() {
 
     log "Installing default mods …"
     install_thunderstore_mod "Marf"    "FuelEternal"   "1.2.1"  "FuelEternal.dll"
-    install_thunderstore_mod "Mydayyy" "ServerSideMap" "1.3.13" "ServerSideMap.dll"
+    # install_thunderstore_mod "Mydayyy" "ServerSideMap" "1.3.13" "ServerSideMap.dll"
     log "Default mods installed."
 }
 

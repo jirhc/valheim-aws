@@ -2,7 +2,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # start_valheim.sh
 # Starts the Valheim Dedicated Server, optionally with BepInEx mod support.
-# All configuration comes from environment variables.
+# Configuration is loaded from valheim.conf (Terraform-managed on EC2,
+# generated from env vars on Docker). Falls back to env var defaults.
 #
 # Environment variables:
 #   SERVER_NAME       — server name shown in the browser (default: MyValheimServer)
@@ -14,6 +15,10 @@
 #   ENABLE_CROSSPLAY  — "true" to enable crossplay (default: "false")
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
+
+# ── Source configuration (Terraform-managed on EC2, generated on Docker) ────
+VALHEIM_CONF="${HOME}/valheim/valheim.conf"
+[[ -f "${VALHEIM_CONF}" ]] && source "${VALHEIM_CONF}"
 
 HOME_DIR="$HOME"
 VALHEIM_DIR="${HOME_DIR}/valheim"

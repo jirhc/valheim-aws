@@ -37,7 +37,7 @@ resource "aws_iam_policy" "valheim" {
         ],
         Resource : [
           "arn:aws:s3:::${aws_s3_bucket.valheim.id}",
-          "arn:aws:s3:::${aws_s3_bucket.valheim.id}/"
+          "arn:aws:s3:::${aws_s3_bucket.valheim.id}/*"
         ]
       },
       {

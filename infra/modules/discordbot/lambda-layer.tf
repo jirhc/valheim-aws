@@ -41,4 +41,6 @@ module "lambda_common_layer" {
   depends_on = [
     null_resource.discord_lambda_layer_generate
   ]
+
+  tags = var.tags
 }

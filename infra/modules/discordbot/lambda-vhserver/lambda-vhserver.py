@@ -98,31 +98,33 @@ def sendFollowupMessage(endpointInfo: IDiscordEndpointInfo,
                         interactionToken: str, responseData: IDiscordResponseData) -> bool:
     """Send a followup message to Discord's APIs on behalf of the bot.
 
+    Edits the original deferred response with the actual content.
+
     @param endpointInfo The information to use when talking to the endpoint.
     @param interactionToken The token representing the interaction to follow up on.
     @param responseData The response data to be sent to the Discord server.
     @returns Returns true if the response was succesfully sent, false otherwise.
     """
-    headers = {
-        'Authorization': f"Bot {endpointInfo.authToken}",
-    }
     data = {
-        "allowedMentions": responseData.allowedMentions,
-        "tts": responseData.tts,
         "content": responseData.content,
+        "tts": responseData.tts,
         "embeds": responseData.embeds,
+        "allowed_mentions": {"parse": responseData.allowedMentions},
     }
 
     apiVersion = endpointInfo.apiVersion if endpointInfo.apiVersion is not None else CURRENT_API_VERSION
-    
-    logger.debug(f"Response: {responseData}")
 
     try:
-        url = f"https://discord.com/api/v{apiVersion}/webhooks/{endpointInfo.applicationId}/{interactionToken}"
-        logger.debug(url)
-        r = requests.post(url, headers=headers, json=data)
-        logger.debug(r)
-        return r.status_code == 200
+        url = f"https://discord.com/api/v{apiVersion}/webhooks/{endpointInfo.applicationId}/{interactionToken}/messages/@original"
+        r = requests.patch(url, json=data)
+        if r.ok:
+            logger.info(f"Discord followup succeeded: {r.status_code}")
+            return True
+        logger.error(f"Discord followup failed: {r.status_code} - {r.text}")
+        return False
+    except requests.exceptions.RequestException as e:
+        logger.error(f"There was an error posting a response: {e}")
+        return False
     except requests.exceptions.RequestException as e:
         logger.error(f"There was an error posting a response: {e}")
         return False

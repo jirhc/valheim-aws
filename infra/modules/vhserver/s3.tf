@@ -65,6 +65,28 @@ resource "aws_s3_bucket_public_access_block" "valheim" {
 }
 
 ###########################################################
+## valheim.conf (Terraform-managed server configuration)
+
+locals {
+  valheim_conf = templatefile("${path.module}/local/valheim.conf", {
+    server_name      = var.server_name
+    world_name       = var.world_name
+    server_password  = var.server_password
+    server_port      = "2456"
+    enable_bepinex   = var.enable_bepinex
+    bepinex_version  = "5.4.23.2"
+    enable_crossplay = var.enable_crossplay
+  })
+}
+
+resource "aws_s3_object" "valheim_conf" {
+  bucket      = aws_s3_bucket.valheim.id
+  key         = "/valheim.conf"
+  content     = local.valheim_conf
+  source_hash = base64sha256(local.valheim_conf)
+}
+
+###########################################################
 ## install_valheim  (plain script — no Terraform template vars)
 
 resource "aws_s3_object" "install_valheim" {
@@ -79,16 +101,11 @@ resource "aws_s3_object" "install_valheim" {
 
 locals {
   bootstrap_valheim = templatefile("${path.module}/local/bootstrap_valheim.sh", {
-    username         = local.username
-    bucket           = aws_s3_bucket.valheim.id
-    use_domain       = var.domain != "" ? true : false
-    world_name       = var.world_name
-    server_name      = var.server_name
-    server_password  = var.server_password
-    server_port      = "2456"
-    enable_bepinex   = var.enable_bepinex
-    bepinex_version  = "5.4.23.2"
-    enable_crossplay = var.enable_crossplay
+    username        = local.username
+    bucket          = aws_s3_bucket.valheim.id
+    use_domain      = var.domain != "" ? true : false
+    world_name      = var.world_name
+    enable_bepinex  = var.enable_bepinex
   })
 }
 

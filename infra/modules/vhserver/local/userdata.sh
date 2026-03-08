@@ -33,7 +33,8 @@ bash kickstart.sh --dont-wait --no-updates
 useradd -m ${username}
 su - ${username} -c "mkdir -p /home/${username}/valheim"
 
-# Download scripts from S3
+# Download scripts and configuration from S3
+aws s3 cp s3://${bucket}/valheim.conf /home/${username}/valheim/valheim.conf
 aws s3 cp s3://${bucket}/install_valheim.sh /home/${username}/valheim/install_valheim.sh
 aws s3 cp s3://${bucket}/bootstrap_valheim.sh /home/${username}/valheim/bootstrap_valheim.sh
 aws s3 cp s3://${bucket}/start_valheim.sh /home/${username}/valheim/start_valheim.sh
@@ -47,11 +48,12 @@ chown ${username}:${username} /home/${username}/valheim/install_valheim.sh
 chown ${username}:${username} /home/${username}/valheim/bootstrap_valheim.sh
 chown ${username}:${username} /home/${username}/valheim/start_valheim.sh
 chown ${username}:${username} /home/${username}/valheim/valheim.service
+chown ${username}:${username} /home/${username}/valheim/valheim.conf
 
 cp /home/${username}/valheim/valheim.service /etc/systemd/system
 
-# Run install as the server user with BepInEx env vars
-su - ${username} -c "BEPINEX_ENABLED=${enable_bepinex} BEPINEX_VERSION=${bepinex_version} bash /home/${username}/valheim/install_valheim.sh"
+# Run install as the server user (config is sourced from valheim.conf)
+su - ${username} -c "bash /home/${username}/valheim/install_valheim.sh"
 
 systemctl daemon-reload
 systemctl enable valheim.service

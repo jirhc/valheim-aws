@@ -74,4 +74,6 @@ module "lambda_interaction" {
   # Timeout in seconds. 
   # Discord allows only 3 seconds to receive the initial answer (can be a ACK)
   timeout = 3
+
+  tags = var.tags
 }

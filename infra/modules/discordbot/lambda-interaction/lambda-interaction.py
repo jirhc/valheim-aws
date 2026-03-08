@@ -88,15 +88,7 @@ def lambda_handler(event, context):
     )
 
     # ACK the initial command, the "command" lambda will takeover the real answer.
-    ret = {
-        "type": RESPONSE_TYPES['DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE'],
-        "data": {
-            "tts": False,
-            "content": "Processing the request. Please wait...",
-            "embeds": [],
-            "allowed_mentions": []
-        }
-    }
+    ret = {"type": RESPONSE_TYPES['DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE']}
     return {
         "statusCode": 200,
         "headers": {"Content-Type": "application/json"},

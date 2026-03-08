@@ -96,5 +96,7 @@ module "lambda_vhserver" {
 
   # Timeout in seconds. 
   timeout = 300
+
+  tags = var.tags
 }
 

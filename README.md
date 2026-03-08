@@ -14,6 +14,10 @@ This project allows the configuration of an AWS infrastructure to support a Valh
 - Optional **BepInEx** mod loader with S3-based mod management.
 - Optional **DynamoDB state locking** for safe team/CI usage ([details](doc/state-locking.md)).
 
+## Quick Start
+
+For a complete step-by-step walkthrough (AWS setup, Discord bot, deployment), see the **[Deployment Guide](DEPLOY.md)**.
+
 ## Requirements
 
 - AWS account including CLI configured on the machine environment.
